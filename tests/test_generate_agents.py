@@ -1,0 +1,87 @@
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class ProfileOwnershipTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.script = self.root / "scripts" / "generate_agents.py"
+        self.script.parent.mkdir()
+        shutil.copyfile(ROOT / "scripts" / self.script.name, self.script)
+        source = self.root / "engineering"
+        (source / "agents").mkdir(parents=True)
+        (source / "agents" / "planner.md").write_text(
+            "# planner\n\nPlan a change.\n\nReturn the ordered steps.\n"
+        )
+        (source / "model-mappings.toml").write_text(
+            '[planner]\nclaude = ["sonnet", "medium"]\n'
+            'codex = ["gpt-6.2-sol", "medium"]\ntools = "inspect"\n'
+        )
+        self.claude = self.root / ".claude" / "agents" / "planner.md"
+        self.codex = self.root / ".codex" / "agents" / "planner.toml"
+        self.generate()
+
+    def generate(self, *args, expected=0):
+        result = subprocess.run(
+            [sys.executable, self.script, *args], capture_output=True, text=True
+        )
+        self.assertEqual(result.returncode, expected, result.stderr)
+        return result.stderr
+
+    def test_unmarked_collision_blocks_writes_and_cleanup(self):
+        orphan = self.claude.with_stem("retired")
+        self.claude.rename(orphan)
+        self.codex.write_text('# My client profile\nname = "planner"\n')
+        original = self.codex.read_bytes()
+        for args in [("--check",), ()]:
+            error = self.generate(*args, expected=1)
+            self.assertIn(".codex/agents/planner.toml", error)
+            self.assertEqual(self.codex.read_bytes(), original)
+            self.assertTrue(orphan.is_file())
+            self.assertFalse(self.claude.exists())
+
+    def test_catalog_paths_preserve_live_and_dangling_symlinks(self):
+        target = self.root / "custom.md"
+        self.claude.rename(target)
+        target.write_text(target.read_text() + "\nLocal edits.\n")
+        original = target.read_bytes()
+        self.claude.symlink_to(target)
+        missing = self.root / "missing.toml"
+        self.codex.unlink()
+        self.codex.symlink_to(missing)
+        for args in [("--check",), ()]:
+            error = self.generate(*args, expected=1)
+            for link, destination in [(self.claude, target), (self.codex, missing)]:
+                self.assertIn(str(link.relative_to(self.root)), error)
+                self.assertEqual(link.readlink(), destination)
+            self.assertEqual(target.read_bytes(), original)
+            self.assertFalse(missing.exists())
+
+    def test_cleanup_only_removes_generated_regular_profiles(self):
+        orphan = self.claude.with_stem("retired")
+        self.claude.rename(orphan)
+        alias = self.codex.with_stem("local-alias")
+        alias.symlink_to(self.codex.name)
+        expected_codex = self.codex.read_bytes()
+        self.codex.write_bytes(expected_codex + b"\n# Stale generated content\n")
+        manual = self.claude.with_stem("local")
+        manual.write_text("---\nname: local\n---\n\nClient instructions.\n")
+        original = manual.read_bytes()
+        self.generate("--check", expected=1)
+        self.assertTrue(orphan.is_file())
+        self.generate()
+        self.generate("--check")
+        self.assertFalse(orphan.exists())
+        self.assertTrue(self.claude.is_file())
+        self.assertEqual(manual.read_bytes(), original)
+        self.assertEqual(alias.readlink(), Path(self.codex.name))
+        self.assertEqual(alias.read_bytes(), expected_codex)

@@ -61,13 +61,22 @@ def profiles():
 
 
 def is_generated_profile(path):
+    """Whether the generator owns this file and may overwrite or remove it.
+
+    Ownership is the MARKER prefix on the header line: line 1 of the TOML,
+    line 2 of the Markdown after "---". Comparing the whole HEADER would turn
+    every existing profile into a collision the moment the wording after the
+    prefix changed. A symlink is never owned, even one pointing at a generated
+    profile: writing would go through to its target, and removing it would
+    delete a link the generator did not create.
+    """
     if path.is_symlink() or not path.is_file():
         return False
     with path.open("rb") as profile:
-        first = profile.readline().rstrip(b"\r\n")
+        first = profile.readline()
         if path.suffix == ".md":
-            return first == b"---" and profile.readline().rstrip(b"\r\n") == HEADER.encode()
-        return first == HEADER.encode()
+            return first.rstrip(b"\r\n") == b"---" and profile.readline().startswith(MARKER.encode())
+        return first.startswith(MARKER.encode())
 
 
 def orphans(outputs):

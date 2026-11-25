@@ -1,0 +1,66 @@
+# Ordered pairs contain the native model name and effort. Tools are Claude Code tool groups.
+[architect]
+claude = ["opus", "high"]
+codex = ["gpt-6.2-astra", "high"]
+tools = "inspect"
+
+[planner]
+claude = ["sonnet", "medium"]
+codex = ["gpt-6.2-sol", "medium"]
+tools = "inspect"
+
+[backend-engineer]
+claude = ["sonnet", "medium"]
+codex = ["gpt-6.2-sol", "medium"]
+tools = "build"
+
+[frontend-engineer]
+claude = ["sonnet", "medium"]
+codex = ["gpt-6.2-sol", "medium"]
+tools = "build"
+
+[database-engineer]
+claude = ["sonnet", "high"]
+codex = ["gpt-6.2-sol", "high"]
+tools = "build"
+
+[security-auditor]
+claude = ["opus", "high"]
+codex = ["gpt-6.2-astra", "high"]
+tools = "inspect"
+
+[code-reviewer]
+claude = ["sonnet", "high"]
+codex = ["gpt-6.2-sol", "high"]
+tools = "inspect"
+
+[qa-engineer]
+claude = ["sonnet", "medium"]
+codex = ["gpt-6.2-sol", "medium"]
+tools = "build"
+
+[devops-engineer]
+claude = ["sonnet", "medium"]
+codex = ["gpt-6.2-sol", "medium"]
+tools = "build"
+
+[performance-engineer]
+claude = ["sonnet", "high"]
+codex = ["gpt-6.2-sol", "high"]
+tools = "build"
+
+[researcher]
+claude = ["sonnet", "medium"]
+codex = ["gpt-6.2-sol", "medium"]
+tools = "research"
+
+[technical-writer]
+claude = ["sonnet", "medium"]
+codex = ["gpt-6.1-terra", "medium"]
+tools = "docs"
+
+[wiki-curator]
+claude = ["haiku", "low"]
+codex = ["gpt-6-luna", "high"]
+tools = "docs"
+
